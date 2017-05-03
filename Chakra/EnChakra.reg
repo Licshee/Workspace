@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{16d51579-a30b-4c8b-a276-0ff4dc41e755}\ProgID]
+@="Chakra"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Wow6432Node\CLSID\{16d51579-a30b-4c8b-a276-0ff4dc41e755}\ProgID]
+@="Chakra"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Chakra]
+@="JScript Language"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Chakra\CLSID]
+@="{16d51579-a30b-4c8b-a276-0ff4dc41e755}"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Chakra\OLEScript]
