@@ -1,0 +1,266 @@
+﻿<html>
+<hta:application id="hta" />
+<title>JSMin HTA</title>
+<style>
+  body
+  {
+    background-color: #9BC3FF;
+    margin: 0px;
+  }
+  *
+  {
+    font-size: 100%;
+  }
+  .orange
+  {
+    filter: progid:DXImageTransform.Microsoft.Gradient(gradientType=0,startColorStr=#FFDD80,endColorStr=#FF8000);
+  }
+  .blue
+  {
+    filter: progid:DXImageTransform.Microsoft.Gradient(gradientType=0,startColorStr=#80DDFF,endColorStr=#0080FF);
+  }
+  .big
+  {
+    font-size: 200%;
+  }
+  .middle
+  {
+    font-size: 125%;
+  }
+  .small
+  {
+    font-size: 50%;
+  }
+</style>
+</head>
+<body>
+  <script language="vbscript">
+  Function vbDetectFileEncoding(fn)
+    Dim Stream, B3
+    Set Stream = CreateObject("ADODB.Stream")
+    Stream.Type = 1
+    Call Stream.Open()
+    Call Stream.LoadFromFile(fn)
+    B3 = CStr(Stream.Read(3))
+    
+    Call Stream.Close()
+    Set Stream = Nothing
+    
+    Dim L1
+    L1 = Left(B3, 1)
+    If (L1 = ChrW(&hFEFF)) Then
+      vbDetectFileEncoding = "unicode"
+      Exit Function
+    Elseif (L1 = ChrW(&hFFFE)) Then
+      vbDetectFileEncoding = "unicodeFEFF"
+      Exit Function
+    Elseif B3 = (ChrB(&hEF) & ChrB(&hBB) & ChrB(&hBF)) Then
+      vbDetectFileEncoding = "utf-8"
+      Exit Function
+    End If
+    
+    
+    vbDetectFileEncoding = defEncoding
+  End Function
+  </script>
+  <script language="jscript" src="jsmin.js"></script>
+  <script language="jscript">
+    var wsh = new ActiveXObject("WScript.Shell");
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+
+    //========//========
+    // A part of "Nana Script Utilities", accept the license at http://nana.codeplex.com/license before use it in your own products.
+    // 这是《Nana脚本工具箱》的一部分，在您自己的产品中使用以前先接受这个使用许可：http://nana.codeplex.com/license 
+    //
+    // parse command-line info
+    // 在HTA环境中从命令行中解读出被执行的HTA的实际路径和附加的参数
+    //========//========
+    function namedOrNot(args) {
+      var named = {}, not = [], c;
+      for(var i = 0; i < args.length; i++) {
+        c = args[i];
+        switch(c.charAt(0)) {
+          case "-":
+          case "/":
+            c = c.substring(1);
+
+            if(c.indexOf("=") > 0) {
+              c = c.split("=");
+              named[c.shift()] = c.join("=");
+            } else if(c.indexOf(":") > 0) {
+              c = c.split(":");
+              named[c.shift()] = c.join(":");
+            } else {
+              // 不能确定一个命名参数是不是也接受附加参数，这是个未解难题
+              //i++;
+              named[c] = args[i + 1];
+            }
+            break;
+          default:
+            not.push(c);
+            break;
+        }
+      }
+      args.named = named;
+      args.unnamed = not;
+    }
+    function parseArgs(str) {
+      var a = [], q = false, c = "", $ = "";
+      function mit() {
+        if(c)
+          a.push(c);
+      }
+      for(var i = 0; i < str.length; i++) {
+        $ = str.charAt(i);
+        if($ == '"') {
+          q = !q;
+        } else {
+          if($ == " " && !q) {
+            mit();
+            c = "";
+          } else {
+            c += $;
+          }
+        }
+      }
+
+      mit();
+      namedOrNot(a);
+      return a;
+    }
+    // License protected code ends here.
+    //========//========
+
+    var curDir = wsh.CurrentDirectory, cmd = parseArgs(hta.commandLine), htaFull = cmd.unnamed[0], htaDir = fso.GetParentFolderName(htaFull);
+
+
+    var src = cmd.unnamed[1];
+    var level = cmd.named["level"];
+
+
+    var defEncoding = "系统默认编码";
+    function detectFileEncoding(fn) {
+      return vbDetectFileEncoding(fn);
+    }
+    function readFile(fn, encoding) {
+      var result, stream;
+      switch(encoding.toLowerCase()) {
+        case defEncoding:
+          stream = fso.OpenTextFile(fn, 1); // { Read: 1, Write: 2, Append: 8 }
+          result = stream.ReadAll();
+          break;
+        default:
+          stream = new ActiveXObject("ADODB.Stream");
+          stream.Type = 2; // { Binary: 1, Text: 2 }
+          stream.Charset = encoding;
+          stream.Open();
+          stream.LoadFromFile(fn);
+          result = stream.ReadText();
+          break;
+      }
+      stream.Close();
+      return result;
+    }
+    function writeFile(fn, text, encoding) {
+      var stream;
+      switch(encoding.toLowerCase()) {
+        case defEncoding:
+          stream = fso.OpenTextFile(fn, 2, true); // { Read: 1, Write: 2, Append: 8 }
+          stream.Write(text);
+          break;
+        default:
+          stream = new ActiveXObject("ADODB.Stream");
+          stream.Type = 2; // { Binary: 1, Text: 2 }
+          stream.Charset = encoding;
+          stream.Open();
+          stream.WriteText(text);
+          stream.SaveToFile(fn, 2); // { CreateNotExist: 1, CreateOverWrite: 2 }
+          break;
+      }
+      stream.Close();
+    }
+
+    var enc = src && detectFileEncoding(src);
+    function procIt(l) {
+      var btns = document.getElementsByTagName("button");
+      for(var i = 0; i < btns.length; i++)
+        btns[i].disabled = true;
+
+      // 如果参数不在接受范围之中，则不进行任何操作直接结束
+      if((l > 0) && (l < 4)) {
+        var dst, p, n, x;
+        p = fso.GetParentFolderName(src);
+        n = fso.GetBaseName(src);
+        x = fso.GetExtensionName(src);
+
+        if(n.substring(n.length - 6).toLowerCase() == "-vsdoc")
+          dst = n.substring(0, n.length - 6)
+        else if(n.substring(n.length - 4).toLowerCase() == "-min")
+          dst = n
+        else
+          dst = n + "-min";
+
+        dst = fso.BuildPath(p, dst + (x && ".") + x);
+
+        writeFile(dst, jsmin("", readFile(src, enc), l), enc);
+        echo("处理完成！");
+      }
+
+      window.close();
+    }
+
+    // 安静模式，默认使用“保守”级
+    var silent = "silent" in cmd.named;
+    function echo(str) {
+      silent || alert(str);
+    }
+    if(silent && !level)
+      level = 2;
+
+
+    if(level != undefined)
+      procIt(level);
+  </script>
+  <p>
+    <center class="big">
+      <p>
+        &nbsp;</p>
+      <p class="small">
+        即将处理：<script language="jscript">
+               if(src)
+                 document.writeln(src);
+               else {
+                 document.writeln("N/A");
+                 echo("未指定希望处理的文件，任务终止。");
+                 procIt(0);
+               }
+        </script></p>
+      <p class="small">
+        采用的编码为：<script language="jscript">
+                 if(src)
+                   document.writeln(enc);
+                 else {
+                   document.writeln("N/A");
+                 }
+        </script></p>
+      <p>
+        &nbsp;</p>
+      请选择缩减等级：
+      <br />
+      <button type="button" class="blue" onclick="procIt(1)">
+        少许</button>
+      <br />
+      <button type="button" class="orange" onclick="procIt(2)">
+        保守</button>
+      <br />
+      <button type="button" class="blue" onclick="procIt(3)">
+        积极</button>
+    </center>
+  </p>
+  <p>
+    &nbsp;</p>
+  <p>
+    <center>
+      如有任何建议，请联系作者<a href="http://www.cnblogs.com/NanaLich">NanaLich</a>。</center>
+  </p>
+</body>
